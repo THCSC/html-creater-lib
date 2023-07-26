@@ -1,23 +1,16 @@
-interface Attribute {
-	[key: string]: string,
-}
-
-interface HtmlElementConstructor {
-	new (elementType: string, element: {attributes?: Map<string, string>, children?: HtmlElement[], classList?: string[], id?: string, text?: string}): HtmlElement;
-}
-
-interface HtmlElement {
-	elementType: string,
+interface HtmlElementProps {
 	attributes?: Map<string, string>,
 	children?: HtmlElement[],
 	classList?: string[],
 	id?: string,
 	text?: string,
+}
 
+interface HtmlElement extends HtmlElementProps {
 	toHtml(): string;
 }
 
-class HtmlElementBuilder implements HtmlElement {
+class HtmlElementBuilder implements HtmlElement, HtmlElementProps {
 	elementType: string;
 	attributes?: Map<string, string>;
 	children?: HtmlElement[] | undefined;
@@ -25,7 +18,7 @@ class HtmlElementBuilder implements HtmlElement {
 	id?: string | undefined;
 	text?: string | undefined;
 
-	constructor(elementType: string, element: {attributes?: Map<string, string>, children?: HtmlElement[], classList?: string[], id?: string, text?: string}) {
+	constructor(elementType: string, element: HtmlElementProps) {
 		this.elementType = elementType;
 		this.attributes = element.attributes;
 		this.children = element.children;
@@ -69,15 +62,15 @@ class HtmlElementBuilder implements HtmlElement {
 	}
 }
 
-function div(element: {attributes?: Map<string, string>, children?: HtmlElement[], classList?: string[], id?: string, text?: string}): HtmlElement {
+function div(element: HtmlElementProps): HtmlElement {
 	return new HtmlElementBuilder("div", element);
 }
 
-function p(element: {attributes?: Map<string, string>, children?: HtmlElement[], classList?: string[], id?: string, text?: string}): HtmlElement {
+function p(element: HtmlElementProps): HtmlElement {
 	return new HtmlElementBuilder("p", element);
 }
 
-function a(element: {attributes?: Map<string, string>, children?: HtmlElement[], classList?: string[], id?: string, text?: string}): HtmlElement {
+function a(element: HtmlElementProps): HtmlElement {
 	return new HtmlElementBuilder("a", element);
 }
 
