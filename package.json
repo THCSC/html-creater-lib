@@ -1,0 +1,24 @@
+{
+  "name": "html-creater-lib",
+  "version": "0.0.1",
+  "description": "A library for creating html in typescript",
+  "main": "index.ts",
+  "scripts": {
+    "test": "dev",
+	"dev": "ts-node ./src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/THCSC/html-creater-lib.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/THCSC/html-creater-lib/issues"
+  },
+  "homepage": "https://github.com/THCSC/html-creater-lib#readme",
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  }
+}
