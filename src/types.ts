@@ -1,22 +1,88 @@
-interface EventListener<Type> {
-	[Property in keyof Type]: Callback;
+interface ClipboardEvent {
+	cut?: Callback;
+	copy?: Callback;
+	paste?: Callback;
 }
 
-enum EventName { 
-	click = "click",
-	submit = "submit",
-};
-interface Callback {
+interface DragEvent {
+	drag?: Callback;
+	dragend?: Callback;
+	dragstart?: Callback;
+	dragenter?: Callback;
+	dragleave?: Callback;
+	dragover?: Callback;
+	drop?: Callback;
+	scroll?: Callback;
+}
+
+interface MouseEvent {
+	click?: Callback;
+	dblclick?: Callback;
+	mousedown?: Callback;
+	mousemove?: Callback;
+	mouseout?: Callback;
+	mouseup?: Callback;
+	mouseover?: Callback;
+	wheel?: Callback;
+}
+
+interface KeyboardEvent {
+	keydown?: Callback;
+	keypress?: Callback;
+	keyup?: Callback;
+}
+
+interface FormEvent {
+	blur?: Callback;
+	change?: Callback;
+	contextmenu?: Callback;
+	focus?: Callback;
+	input?: Callback;
+	invalid?: Callback;
+	reset?: Callback;
+	search?: Callback;
+	select?: Callback;
+	submit?: Callback;
+}
+
+interface WindowEvent {
+	afterprint?: Callback;
+	beforeprint?: Callback;
+	beforeunload?: Callback;
+	error?: Callback;
+	hashchange?: Callback;
+	load?: Callback;
+	message?: Callback;
+	offline?: Callback;
+	online?: Callback;
+	pagehide?: Callback;
+	pageshow?: Callback;
+	popstate?: Callback;
+	resize?: Callback;
+	storage?: Callback;
+	unload?: Callback;
+}
+
+export interface Callback {
 	[func: string]: string[];
 }
 
+interface StyleProperty {
+	[prop: string]: string;
+}
+
+interface Attribute {
+	[attr: string]: string;
+}
+
 export interface HtmlElementProps {
-	attributes?: Map<string, string>,
+	attributes?: Attribute | undefined,
 	children?: HtmlElement[],
 	classList?: string[],
-	eventlisteners?: EventListener[],
+	content?: string,
+	eventlisteners?: ClipboardEvent | DragEvent | MouseEvent | KeyboardEvent | FormEvent | WindowEvent | undefined,
 	id?: string,
-	text?: string,
+	style?: StyleProperty | undefined;
 }
 
 export interface HtmlElement {
@@ -24,54 +90,4 @@ export interface HtmlElement {
 	elementType: string;
 
 	toHtml(): string;
-}
-
-export class HtmlElementBuilder implements HtmlElement {
-	elementType: string;
-	element: HtmlElementProps;
-
-	constructor(elementType: string, element: HtmlElementProps) {
-		this.elementType = elementType;
-		this.element = element;
-	}
-
-	toHtml(): string {
-	    let res = `<${this.elementType}`;
-
-		if (this.element.id) res += ` id="${this.element.id}"`;
-
-		if (this.element.classList) {
-			res += ' class="';
-			for (let i = 0; i < this.element.classList.length; i++) {
-				res += this.element.classList[i];
-				res += i < this.element.classList.length - 1 ? " " : "";
-			}
-		}
-
-		if (this.element.attributes) {
-			for (let key of Array.from(this.element.attributes.keys())) {
-				res += ` ${key}="${this.element.attributes.get(key)}"`
-			}
-		}
-
-		if (this.element.eventlisteners) {
-			for (let i = 0; i < this.element.eventlisteners.length; i++) {
-				res += ` ${this.element.eventlisteners[i]}`
-			}
-		}
-
-		res += ">";
-
-		if (this.element.children) {
-			for (let i = 0; i < this.element.children.length; i++) {
-				res += "\n" + this.element.children[i].toHtml();
-			}
-		} else if (this.element.text) {
-			res += `\n${this.element.text}`;
-		}
-
-		res += `\n</${this.elementType}>`
-
-		return res;
-	}
 }
