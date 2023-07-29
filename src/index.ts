@@ -1,103 +1,61 @@
-interface HtmlElementProps {
-	attributes?: Map<string, string>,
-	children?: HtmlElement[],
-	classList?: string[],
-	id?: string,
-	text?: string,
-}
-
-interface HtmlElement extends HtmlElementProps {
-	toHtml(): string;
-}
-
-class HtmlElementBuilder implements HtmlElement, HtmlElementProps {
-	elementType: string;
-	attributes?: Map<string, string>;
-	children?: HtmlElement[] | undefined;
-	classList?: string[] | undefined;
-	id?: string | undefined;
-	text?: string | undefined;
-
-	constructor(elementType: string, element: HtmlElementProps) {
-		this.elementType = elementType;
-		this.attributes = element.attributes;
-		this.children = element.children;
-		this.classList = element.classList;
-		this.id = element.id;
-		this.text = element.text;
-	}
-
-	toHtml(): string {
-	    let res = `<${this.elementType}`;
-
-		if (this.id) res += ` id="${this.id}"`;
-
-		if (this.classList) {
-			res += ' class="';
-			for (let i = 0; i < this.classList.length; i++) {
-				res += this.classList[i];
-				res += i < this.classList.length - 1 ? " " : "";
-			}
-		}
-
-		if (this.attributes) {
-			for (let key of Array.from(this.attributes.keys())) {
-				res += ` ${key}="${this.attributes.get(key)}"`
-			}
-		}
-
-		res += ">";
-
-		if (this.children) {
-			for (let i = 0; i < this.children.length; i++) {
-				res += "\n" + this.children[i].toHtml();
-			}
-		} else if (this.text) {
-			res += `\n${this.text}`;
-		}
-
-		res += `\n</${this.elementType}>`
-
-		return res;
-	}
-}
-
-function div(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("div", element);
-}
-
-function p(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("p", element);
-}
-
-function a(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("a", element);
-}
+import { div, p, a, button, script } from "./elements";
+import * as http from "node:http";
 
 let html = div({
 	children: [
 		a({
 			id: "test-id",
-			attributes: new Map([
-				["href", "https://skancloud.dk/"],
-			]),
-			text: "This is a link",
+			attributes: {
+				"href": "https://skancloud.dk/",
+				"data-test": "test",
+			},
+			content: "This is a link",
+		}),
+		button({
+			eventlisteners: {
+				change: {
+					"change": []
+				},
+				load: {
+					"function": [ "param", "param2" ]
+				},
+			},
+			style: {
+				"display": "flex",
+				"width": "200px",
+			}
 		}),
 		p({
 			classList: [
 				"paragraph",
 				"small-para",
 			],
-			text: "This is a small paragraph",
+			content: "This is a small paragraph",
 		}),
 		p({
 			classList: [
 				"paragraph",
 				"small-para",
 			],
-			text: "This is another small paragraph",
+			content: "This is another small paragraph",
 		}),
+		script({
+			attributes: {
+				"src": "index.js",
+			},
+		})
 	],
-}).toHtml();
+});
 
-console.log(html);
+
+http.createServer(async (req, res) => {
+	console.log("Request recieved for path: " + req.url);
+	let file = html.toHtml();
+
+	res.writeHead(200, {"Content-Type": "text/html"});
+	
+	res.write(file);
+	res.end();
+}).listen(8080);
+
+console.log("Server running at http://127.0.0.1:8080/")
