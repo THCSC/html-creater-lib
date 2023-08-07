@@ -1,60 +1,20 @@
-import { div, p, a, button, script } from "./elements";
+import Router from "./server/router.js";
 import * as http from "node:http";
+import * as path from "node:path";
+import { fileURLToPath} from "url";
 
-let html = div({
-	children: [
-		a({
-			id: "test-id",
-			attributes: {
-				"href": "https://skancloud.dk/",
-				"data-test": "test",
-			},
-			content: "This is a link",
-		}),
-		button({
-			eventlisteners: {
-				change: {
-					"change": []
-				},
-				load: {
-					"function": [ "param", "param2" ]
-				},
-			},
-			style: {
-				"display": "flex",
-				"width": "200px",
-			}
-		}),
-		p({
-			classList: [
-				"paragraph",
-				"small-para",
-			],
-			content: "This is a small paragraph",
-		}),
-		p({
-			classList: [
-				"paragraph",
-				"small-para",
-			],
-			content: "This is another small paragraph",
-		}),
-		script({
-			attributes: {
-				"src": "index.js",
-			},
-		})
-	],
-});
 
+let router = Router.setup(path.join(path.basename(path.dirname(fileURLToPath(import.meta.url))), "/routes"));
 
 http.createServer(async (req, res) => {
-	console.log("Request recieved for path: " + req.url);
-	let file = html.toHtml();
-
-	res.writeHead(200, {"Content-Type": "text/html"});
+	if (!req.url) return;
 	
-	res.write(file);
+	console.log("Request recieved for path: " + req.url);
+
+	let file = await router.getFileContent(req.url);
+
+	res.writeHead(file.status, {"Content-Type": file.mimeType});
+	res.write(file.content);
 	res.end();
 }).listen(8080);
 

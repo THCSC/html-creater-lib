@@ -3,9 +3,11 @@
   "version": "0.0.1",
   "description": "A library for creating html in typescript",
   "main": "index.ts",
+  "type": "module",
   "scripts": {
     "test": "dev",
-	"dev": "ts-node ./src/index.ts"
+	"dev": "tsc && ts-node ./dist/index.js",
+	"build": "tsc --build"
   },
   "repository": {
     "type": "git",
