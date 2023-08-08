@@ -1,4 +1,4 @@
-import { Callback, HtmlElement, HtmlElementProps } from "./types";
+import { Callback, HtmlElement, HtmlElementProps, CssSelector, StyleProperty } from "./types";
 
 export function div(element: HtmlElementProps): HtmlElement {
 	return new HtmlElementBuilder("div", element);
@@ -18,6 +18,14 @@ export function button(element: HtmlElementProps): HtmlElement {
 
 export function script(element: HtmlElementProps): HtmlElement {
 	return new HtmlElementBuilder("script", element);
+}
+
+export function link(element: HtmlElementProps): HtmlElement {
+	return new HtmlElementBuilder("link", element);
+}
+
+export function cssBuilder(selectors: CssSelector) {
+	return new CssBuilder(selectors);
 }
 
 class HtmlElementBuilder implements HtmlElement {
@@ -81,6 +89,36 @@ class HtmlElementBuilder implements HtmlElement {
 		}
 
 		res += `\n</${this.elementType}>`
+
+		return res;
+	}
+}
+
+class CssBuilder {
+	selectors: CssSelector;
+
+	constructor(selectors: CssSelector) {
+		this.selectors = selectors;
+	}
+
+	toCss(): string {
+		let res = "";
+
+		const entries = Object.entries(this.selectors);
+
+		for (let i = 0; i < entries.length; i++) {
+			const current = entries[i];
+
+			res += `\n${current[0]} {\n`
+
+			let props = Object.entries(current[1]);
+
+			for (let j = 0; j < props.length; j++ ) {
+				let prop = props[j];
+				res += `${prop[0]}: ${prop[1]};`
+				res += j < props.length - 1 ? "\n" : "\n}\n";
+			}
+		}
 
 		return res;
 	}

@@ -1,186 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vm from "node:vm";
-interface ClipboardEvent {
-	cut?: Callback;
-	copy?: Callback;
-	paste?: Callback;
-}
-
-interface DragEvent {
-	drag?: Callback;
-	dragend?: Callback;
-	dragstart?: Callback;
-	dragenter?: Callback;
-	dragleave?: Callback;
-	dragover?: Callback;
-	drop?: Callback;
-	scroll?: Callback;
-}
-
-interface MouseEvent {
-	click?: Callback;
-	dblclick?: Callback;
-	mousedown?: Callback;
-	mousemove?: Callback;
-	mouseout?: Callback;
-	mouseup?: Callback;
-	mouseover?: Callback;
-	wheel?: Callback;
-}
-
-interface KeyboardEvent {
-	keydown?: Callback;
-	keypress?: Callback;
-	keyup?: Callback;
-}
-
-interface FormEvent {
-	blur?: Callback;
-	change?: Callback;
-	contextmenu?: Callback;
-	focus?: Callback;
-	input?: Callback;
-	invalid?: Callback;
-	reset?: Callback;
-	search?: Callback;
-	select?: Callback;
-	submit?: Callback;
-}
-
-interface WindowEvent {
-	afterprint?: Callback;
-	beforeprint?: Callback;
-	beforeunload?: Callback;
-	error?: Callback;
-	hashchange?: Callback;
-	load?: Callback;
-	message?: Callback;
-	offline?: Callback;
-	online?: Callback;
-	pagehide?: Callback;
-	pageshow?: Callback;
-	popstate?: Callback;
-	resize?: Callback;
-	storage?: Callback;
-	unload?: Callback;
-}
-
-export interface Callback {
-	[func: string]: string[];
-}
-
-interface StyleProperty {
-	[prop: string]: string;
-}
-
-interface Attribute {
-	[attr: string]: string;
-}
-
-export interface HtmlElementProps {
-	attributes?: Attribute | undefined,
-	children?: HtmlElement[],
-	classList?: string[],
-	content?: string,
-	eventlisteners?: ClipboardEvent | DragEvent | MouseEvent | KeyboardEvent | FormEvent | WindowEvent | undefined,
-	id?: string,
-	style?: StyleProperty | undefined;
-}
-
-export interface HtmlElement {
-	element: HtmlElementProps;
-	elementType: string;
-
-	toHtml(): string;
-}
-
-export function div(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("div", element);
-}
-
-export function p(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("p", element);
-}
-
-export function a(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("a", element);
-}
-
-export function button(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("button", element);
-}
-
-export function script(element: HtmlElementProps): HtmlElement {
-	return new HtmlElementBuilder("script", element);
-}
-
-class HtmlElementBuilder implements HtmlElement {
-	elementType: string;
-	element: HtmlElementProps;
-
-	constructor(elementType: string, element: HtmlElementProps) {
-		this.elementType = elementType;
-		this.element = element;
-	}
-
-	toHtml(): string {
-	    let res = `<${this.elementType}`;
-
-		if (this.element.id) res += ` id="${this.element.id}"`;
-
-		if (this.element.classList) {
-			res += ' class="';
-			for (let i = 0; i < this.element.classList.length; i++) {
-				res += this.element.classList[i];
-				res += i < this.element.classList.length - 1 ? " " : "";
-			}
-			res += '"';
-		}
-
-		if (this.element.attributes) {
-			let attribs = Object.entries(this.element.attributes);
-			for (let i = 0; i < attribs.length; i++ ) {
-				let attr = attribs[i];
-				res += ` ${attr[0]}="${attr[1]}"`
-			}
-		}
-
-		if (this.element.eventlisteners) {
-			for (let key of Object.entries(this.element.eventlisteners)) {
-				let callback = Object.entries(key[1] as Callback)[0];
-				res += ` on${key[0]}="${callback[0]}(${callback[1]})"`
-			}
-		}
-
-		if (this.element.style) {
-			let props = Object.entries(this.element.style);
-
-			res += ' style="'
-			for (let i = 0; i < props.length; i++ ) {
-				let prop = props[i];
-				res += `${prop[0]}: ${prop[1]};`
-				res += i < props.length - 1 ? " " : "";
-			}
-			res += '"';
-		}
-
-		res += ">";
-
-		if (this.element.children) {
-			for (let i = 0; i < this.element.children.length; i++) {
-				res += "\n" + this.element.children[i].toHtml();
-			}
-		} else if (this.element.content) {
-			res += `\n${this.element.content}`;
-		}
-
-		res += `\n</${this.elementType}>`
-
-		return res;
-	}
-}
-
+import {div, p, a, button, script, cssBuilder, link} from "framework";
 
 type MimeType = {
 	[key: string]: string;
@@ -222,22 +43,21 @@ class Router {
 				console.log("reading file: " + name);
 
 				const vmFunctions = createVmContent(content);
-				console.log(vmFunctions);
-				const context = vm.createContext({ div, p, a, button, script });
+				const context = vm.createContext({ div, p, a, button, script, link, cssBuilder});
 
 				for (let i = 0; i < vmFunctions.length; i++) {
-					let content: string = getVmFunctionString(vmFunctions[i]);
-					console.log(content);
-					const output = vm.runInContext(content, context, {filename: name});
+					let vmScript = getVmFunctionString(vmFunctions[i]);
 
-					console.log(output);
+					if (vmScript.runnable) {
+						vmScript.script = vm.runInContext(vmScript.script, context, {filename: name});
+					}
 
 					name = name.replace(name.substring(name.indexOf(".")), `.${vmFunctions[i].name}`);
 					const newFile = path.join(filePath, name);
 
 					try {
 						const fd = fs.openSync(newFile,'w+');
-						fs.writeFileSync(fd, output, { flag: "w+" });
+						fs.writeFileSync(fd, vmScript.script, { flag: "w+" });
 					} catch(e) {
 						console.log(e);
 					}
@@ -250,6 +70,7 @@ class Router {
 
 	public async getFileContent(_path: string): Promise<File> {
 		if (_path == "/") _path += "index.html";
+		if (_path.indexOf(".") == -1) _path += ".html";
 
 		try {
 			const lookupPath = path.join(this.baseRoute, _path);
@@ -329,6 +150,21 @@ class Lexer {
 		this.advance()
 	}
 
+    skipMultiLineComment() {
+		this.advance()
+		this.advance()
+
+		while (this.currentChar != "*" && this.peek() != "/") {
+			this.advance();
+		}
+
+		this.advance();
+		this.advance();
+    }
+    skipSingleLineComment() {
+        throw new Error("Method not implemented.");
+    }
+
 	endOfFile(): boolean {
 		return this.index >= this.content.length;
 	}
@@ -396,6 +232,10 @@ class Lexer {
 
 		return res;
 	}
+
+	peek(): string {
+		return this.content.charAt(this.index+1);
+	}
 }
 
 interface VmFunction {
@@ -434,6 +274,15 @@ function createVmContent(content: string): VmFunction[] {
 					break;
 			}
 		}
+
+		switch (lexer.getCurrentChar()) {
+			case "/":
+				if (lexer.peek() == "/") 
+					lexer.skipSingleLineComment();
+				if (lexer.peek() == "*")
+					lexer.skipMultiLineComment();
+			break;
+		}
 	}
 
 	return res;
@@ -444,12 +293,18 @@ export default Router;
 function charIsAlpha(char: string): boolean {
 	return char.toLowerCase() != char.toUpperCase()
 }
-function getVmFunctionString(item: VmFunction): string {
-	let res = "";
+function getVmFunctionString(item: VmFunction): {script: string, runnable: boolean} {
+	let res = {script: "", runnable: false};
 
 	switch (item.name) {
 		case "html":
-			res += `function ${item.name}() ${item.content}\n${item.name}()`;
+		case "css":
+			res.script = `function ${item.name}() ${item.content}\n${item.name}()`;
+			res.runnable = true;
+			break;
+		case "js":
+			res.script = `${item.content}`;
+			res.runnable = false;
 			break;
 	}
 

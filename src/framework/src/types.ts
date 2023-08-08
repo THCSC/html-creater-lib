@@ -67,8 +67,12 @@ export interface Callback {
 	[func: string]: string[];
 }
 
-interface StyleProperty {
+export interface StyleProperty {
 	[prop: string]: string;
+}
+
+export interface CssSelector {
+	[selector: string]: StyleProperty;
 }
 
 interface Attribute {

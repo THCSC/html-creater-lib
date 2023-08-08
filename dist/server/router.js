@@ -1,76 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vm from "node:vm";
-export function div(element) {
-    return new HtmlElementBuilder("div", element);
-}
-export function p(element) {
-    return new HtmlElementBuilder("p", element);
-}
-export function a(element) {
-    return new HtmlElementBuilder("a", element);
-}
-export function button(element) {
-    return new HtmlElementBuilder("button", element);
-}
-export function script(element) {
-    return new HtmlElementBuilder("script", element);
-}
-class HtmlElementBuilder {
-    elementType;
-    element;
-    constructor(elementType, element) {
-        this.elementType = elementType;
-        this.element = element;
-    }
-    toHtml() {
-        let res = `<${this.elementType}`;
-        if (this.element.id)
-            res += ` id="${this.element.id}"`;
-        if (this.element.classList) {
-            res += ' class="';
-            for (let i = 0; i < this.element.classList.length; i++) {
-                res += this.element.classList[i];
-                res += i < this.element.classList.length - 1 ? " " : "";
-            }
-            res += '"';
-        }
-        if (this.element.attributes) {
-            let attribs = Object.entries(this.element.attributes);
-            for (let i = 0; i < attribs.length; i++) {
-                let attr = attribs[i];
-                res += ` ${attr[0]}="${attr[1]}"`;
-            }
-        }
-        if (this.element.eventlisteners) {
-            for (let key of Object.entries(this.element.eventlisteners)) {
-                let callback = Object.entries(key[1])[0];
-                res += ` on${key[0]}="${callback[0]}(${callback[1]})"`;
-            }
-        }
-        if (this.element.style) {
-            let props = Object.entries(this.element.style);
-            res += ' style="';
-            for (let i = 0; i < props.length; i++) {
-                let prop = props[i];
-                res += `${prop[0]}: ${prop[1]};`;
-                res += i < props.length - 1 ? " " : "";
-            }
-            res += '"';
-        }
-        res += ">";
-        if (this.element.children) {
-            for (let i = 0; i < this.element.children.length; i++) {
-                res += "\n" + this.element.children[i].toHtml();
-            }
-        }
-        else if (this.element.content) {
-            res += `\n${this.element.content}`;
-        }
-        res += `\n</${this.elementType}>`;
-        return res;
-    }
-}
+import { div, p, a, button, script, cssBuilder, link } from "framework";
 const MIME_TYPES = {
     default: "application/octet-stream",
     html: "text/html; charset=UTF-8",
@@ -92,18 +23,17 @@ class Router {
         readFilesInDir(baseRoute, (name, filePath, content) => {
             console.log("reading file: " + name);
             const vmFunctions = createVmContent(content);
-            console.log(vmFunctions);
-            const context = vm.createContext({ div, p, a, button, script });
+            const context = vm.createContext({ div, p, a, button, script, link, cssBuilder });
             for (let i = 0; i < vmFunctions.length; i++) {
-                let content = getVmFunctionString(vmFunctions[i]);
-                console.log(content);
-                const output = vm.runInContext(content, context, { filename: name });
-                console.log(output);
+                let vmScript = getVmFunctionString(vmFunctions[i]);
+                if (vmScript.runnable) {
+                    vmScript.script = vm.runInContext(vmScript.script, context, { filename: name });
+                }
                 name = name.replace(name.substring(name.indexOf(".")), `.${vmFunctions[i].name}`);
                 const newFile = path.join(filePath, name);
                 try {
                     const fd = fs.openSync(newFile, 'w+');
-                    fs.writeFileSync(fd, output, { flag: "w+" });
+                    fs.writeFileSync(fd, vmScript.script, { flag: "w+" });
                 }
                 catch (e) {
                     console.log(e);
@@ -115,6 +45,8 @@ class Router {
     async getFileContent(_path) {
         if (_path == "/")
             _path += "index.html";
+        if (_path.indexOf(".") == -1)
+            _path += ".html";
         try {
             const lookupPath = path.join(this.baseRoute, _path);
             const pathTraversal = !lookupPath.startsWith(this.baseRoute);
@@ -180,6 +112,18 @@ class Lexer {
         }
         this.advance();
     }
+    skipMultiLineComment() {
+        this.advance();
+        this.advance();
+        while (this.currentChar != "*" && this.peek() != "/") {
+            this.advance();
+        }
+        this.advance();
+        this.advance();
+    }
+    skipSingleLineComment() {
+        throw new Error("Method not implemented.");
+    }
     endOfFile() {
         return this.index >= this.content.length;
     }
@@ -234,6 +178,9 @@ class Lexer {
         res.content = this.readBlock();
         return res;
     }
+    peek() {
+        return this.content.charAt(this.index + 1);
+    }
 }
 function createVmContent(content) {
     console.log("creating vm content");
@@ -260,6 +207,14 @@ function createVmContent(content) {
                     break;
             }
         }
+        switch (lexer.getCurrentChar()) {
+            case "/":
+                if (lexer.peek() == "/")
+                    lexer.skipSingleLineComment();
+                if (lexer.peek() == "*")
+                    lexer.skipMultiLineComment();
+                break;
+        }
     }
     return res;
 }
@@ -268,10 +223,16 @@ function charIsAlpha(char) {
     return char.toLowerCase() != char.toUpperCase();
 }
 function getVmFunctionString(item) {
-    let res = "";
+    let res = { script: "", runnable: false };
     switch (item.name) {
         case "html":
-            res += `function ${item.name}() ${item.content}\n${item.name}()`;
+        case "css":
+            res.script = `function ${item.name}() ${item.content}\n${item.name}()`;
+            res.runnable = true;
+            break;
+        case "js":
+            res.script = `${item.content}`;
+            res.runnable = false;
             break;
     }
     return res;
